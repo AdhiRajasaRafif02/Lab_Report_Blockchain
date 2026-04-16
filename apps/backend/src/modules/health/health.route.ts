@@ -3,5 +3,11 @@ import { Router } from "express";
 export const healthRouter = Router();
 
 healthRouter.get("/", (_req, res) => {
-  res.json({ status: "ok", service: "lab-report-backend" });
+  res.json({
+    success: true,
+    message: "Service healthy",
+    data: {
+      status: "ok"
+    }
+  });
 });

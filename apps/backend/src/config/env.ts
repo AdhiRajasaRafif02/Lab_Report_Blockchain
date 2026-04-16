@@ -9,10 +9,9 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   JWT_SECRET: z.string().min(12),
   JWT_EXPIRES_IN: z.string().default("1d"),
+  BCRYPT_SALT_ROUNDS: z.coerce.number().int().min(4).max(15).default(10),
   UPLOAD_DIR: z.string().default("uploads"),
-  HARDHAT_RPC_URL: z.string().url(),
-  CONTRACT_ADDRESS: z.string().min(1),
-  CHAIN_SIGNER_PRIVATE_KEY: z.string().min(1)
+  MAX_FILE_SIZE_MB: z.coerce.number().int().positive().default(10)
 });
 
 export const env = envSchema.parse(process.env);

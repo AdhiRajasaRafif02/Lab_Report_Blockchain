@@ -8,7 +8,8 @@
     "lint": "eslint \"{scripts,test}/**/*.ts\" \"hardhat.config.ts\"",
     "format": "prettier --write \"contracts/**/*.sol\" \"{scripts,test}/**/*.ts\" \"*.ts\"",
     "chain": "hardhat node",
-    "deploy:local": "hardhat run scripts/deploy.ts --network localhost"
+    "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
+    "interact:local": "hardhat run scripts/interact-example.ts --network localhost"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.12.2",

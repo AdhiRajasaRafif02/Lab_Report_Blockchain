@@ -5,7 +5,12 @@ async function main() {
   const contract = await factory.deploy();
   await contract.waitForDeployment();
 
-  console.log("LabReportRegistry deployed to:", await contract.getAddress());
+  const address = await contract.getAddress();
+  const [deployer] = await ethers.getSigners();
+
+  console.log("LabReportRegistry deployed to:", address);
+  console.log("Deployer:", deployer.address);
+  console.log("Set this in backend/frontend env as CONTRACT_ADDRESS =", address);
 }
 
 main().catch((error) => {

@@ -114,3 +114,46 @@ Contracts:
 - `npm run build --workspace @lab/contracts`
 - `npm run test --workspace @lab/contracts`
 - `npm run deploy:local --workspace @lab/contracts`
+
+## Blockchain Layer (Hardhat + Solidity)
+
+Contract: `packages/contracts/contracts/LabReportRegistry.sol`
+
+### On-chain integrity model
+- Stores metadata and hash proof only
+- Never stores file binary/content on-chain
+
+### Core capabilities
+1. `registerDocument(...)`
+2. `getDocumentByHash(bytes32)`
+3. `getDocumentById(string)`
+4. `verifyDocumentHash(bytes32)`
+5. `revokeDocument(string,string)`
+6. `getDocumentStatus(string)`
+7. Events for registration, verification checks, and revocation
+
+### Access control
+- Owner is set at deploy time
+- Owner can authorize registrars via `setRegistrar(address,bool)`
+- Only authorized registrar can register
+- Only owner can revoke
+
+### Local demo run
+1. Start Hardhat local chain:
+   - `npm run chain --workspace @lab/contracts`
+2. Deploy contract:
+   - `npm run deploy:local --workspace @lab/contracts`
+3. Save deployed address into `packages/contracts/.env`:
+   - `CONTRACT_ADDRESS=0x...`
+4. Run interaction demo:
+   - `npm run interact:local --workspace @lab/contracts`
+5. Run contract tests:
+   - `npm run test --workspace @lab/contracts`
+
+### Test coverage
+- successful registration
+- duplicate hash rejection
+- valid lookup by hash and id
+- revocation flow
+- revoked status query
+- unauthorized registration/revocation rejection
