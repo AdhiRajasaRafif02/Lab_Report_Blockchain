@@ -1,0 +1,19 @@
+{
+  "name": "lab-report-blockchain",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "echo \"Run npm run dev:backend, npm run dev:frontend, and npm run dev:contracts in separate terminals\"",
+    "dev:frontend": "npm run dev --workspace @lab/frontend",
+    "dev:backend": "npm run dev --workspace @lab/backend",
+    "dev:contracts": "npm run chain --workspace @lab/contracts",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "npm run format --workspaces --if-present"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@lab/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "lint": "eslint \"{scripts,test}/**/*.ts\" \"hardhat.config.ts\"",
+    "format": "prettier --write \"contracts/**/*.sol\" \"{scripts,test}/**/*.ts\" \"*.ts\"",
+    "chain": "hardhat node",
+    "deploy:local": "hardhat run scripts/deploy.ts --network localhost"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.12.2",
+    "@typescript-eslint/parser": "^8.12.2",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@types/node": "^22.9.0",
+    "dotenv": "^16.4.5",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "hardhat": "^2.22.15",
+    "prettier": "^3.3.3",
+    "prettier-plugin-solidity": "^1.4.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  }
+}

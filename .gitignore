@@ -1,0 +1,16 @@
+node_modules
+dist
+build
+.turbo
+.DS_Store
+coverage
+*.log
+.env
+.env.*
+!.env.example
+uploads
+apps/backend/uploads
+apps/backend/prisma/dev.db
+packages/contracts/cache
+packages/contracts/artifacts
+packages/contracts/typechain-types

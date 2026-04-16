@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  admin
+  lab_staff
+  verifier
+  user
+}
+
+enum DocumentStatus {
+  active
+  revoked
+}
+
+enum VerifyResult {
+  authentic
+  tampered
+  revoked
+  not_found
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  role         UserRole @default(user)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  documents       Document[]
+  uploadedEvents  AuditTrail[] @relation("UploadedBy")
+  verifiedEvents  AuditTrail[] @relation("VerifiedBy")
+  revokedEvents   AuditTrail[] @relation("RevokedBy")
+  verifications   Verification[]
+  revocations     Revocation[]
+}
+
+model Document {
+  id              String         @id @default(cuid())
+  documentCode    String         @unique
+  fileName        String
+  mimeType        String
+  documentType    String
+  institutionName String?
+  filePath        String
+  fileHash        String         @db.VarChar(64)
+  status          DocumentStatus @default(active)
+  uploadedById    String
+  uploadedAt      DateTime       @default(now())
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  txHash          String?
+  blockNumber     BigInt?
+  chainTimestamp  DateTime?
+
+  uploadedBy      User           @relation(fields: [uploadedById], references: [id])
+  verifications   Verification[]
+  revocation      Revocation?
+  auditTrails     AuditTrail[]
+
+  @@index([fileHash])
+  @@index([status])
+  @@index([documentType])
+  @@index([uploadedAt])
+}
+
+model Verification {
+  id               String       @id @default(cuid())
+  documentId       String?
+  verifierUserId   String?
+  uploadedFileName String
+  computedHash     String       @db.VarChar(64)
+  result           VerifyResult
+  comparedAt       DateTime     @default(now())
+  txHash           String?
+  notes            String?
+
+  document Document? @relation(fields: [documentId], references: [id])
+  verifier User?     @relation(fields: [verifierUserId], references: [id])
+
+  @@index([computedHash])
+  @@index([result])
+  @@index([comparedAt])
+}
+
+model Revocation {
+  id            String   @id @default(cuid())
+  documentId    String   @unique
+  reason        String
+  revokedById   String
+  revokedAt     DateTime @default(now())
+  txHash        String?
+
+  document Document @relation(fields: [documentId], references: [id])
+  revokedBy User    @relation(fields: [revokedById], references: [id])
+}
+
+model AuditTrail {
+  id               String   @id @default(cuid())
+  action           String
+  documentId       String?
+  uploadedById     String?
+  verifiedById     String?
+  revokedById      String?
+  metadataSnapshot Json?
+  createdAt        DateTime @default(now())
+
+  document   Document? @relation(fields: [documentId], references: [id])
+  uploadedBy User?     @relation("UploadedBy", fields: [uploadedById], references: [id])
+  verifiedBy User?     @relation("VerifiedBy", fields: [verifiedById], references: [id])
+  revokedBy  User?     @relation("RevokedBy", fields: [revokedById], references: [id])
+
+  @@index([action])
+  @@index([createdAt])
+}
