@@ -44,6 +44,7 @@ export const revocationService = {
     await auditService.createLog({
       action: "DOCUMENT_REVOKED",
       documentId: input.documentId,
+      actorUserId: input.revokedById,
       revokedById: input.revokedById,
       metadataSnapshot: {
         reason: input.reason,

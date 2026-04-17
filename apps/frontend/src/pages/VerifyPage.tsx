@@ -19,6 +19,14 @@ export const VerifyPage = () => {
       setError("Please choose a PDF file.");
       return;
     }
+    if (file.type !== "application/pdf") {
+      setError("Only PDF files are supported for verification.");
+      return;
+    }
+    if (file.size === 0) {
+      setError("Selected file is empty.");
+      return;
+    }
     setError("");
     mutation.mutate({ file, documentId: documentId || undefined });
   };
@@ -40,6 +48,9 @@ export const VerifyPage = () => {
           <input type="file" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
         </div>
         {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+        {mutation.isError ? (
+          <p className="text-sm text-rose-600">Verification failed. Please check file and try again.</p>
+        ) : null}
         <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white">
           {mutation.isPending ? "Verifying..." : "Verify"}
         </button>

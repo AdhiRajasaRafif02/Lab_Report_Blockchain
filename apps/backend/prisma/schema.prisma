@@ -26,6 +26,14 @@ enum VerifyResult {
   not_found
 }
 
+enum AuditAction {
+  DOCUMENT_UPLOADED
+  DOCUMENT_REGISTERED_ON_CHAIN
+  DOCUMENT_VIEWED
+  DOCUMENT_VERIFICATION_ATTEMPTED
+  DOCUMENT_REVOKED
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -39,6 +47,7 @@ model User {
   uploadedEvents  AuditTrail[] @relation("UploadedBy")
   verifiedEvents  AuditTrail[] @relation("VerifiedBy")
   revokedEvents   AuditTrail[] @relation("RevokedBy")
+  actorEvents     AuditTrail[] @relation("AuditActor")
   verifications   Verification[]
   revocations     Revocation[]
 }
@@ -106,8 +115,9 @@ model Revocation {
 
 model AuditTrail {
   id               String   @id @default(cuid())
-  action           String
+  action           AuditAction
   documentId       String?
+  actorUserId      String?
   uploadedById     String?
   verifiedById     String?
   revokedById      String?
@@ -115,6 +125,7 @@ model AuditTrail {
   createdAt        DateTime @default(now())
 
   document   Document? @relation(fields: [documentId], references: [id])
+  actor      User?     @relation("AuditActor", fields: [actorUserId], references: [id])
   uploadedBy User?     @relation("UploadedBy", fields: [uploadedById], references: [id])
   verifiedBy User?     @relation("VerifiedBy", fields: [verifiedById], references: [id])
   revokedBy  User?     @relation("RevokedBy", fields: [revokedById], references: [id])

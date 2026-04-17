@@ -11,7 +11,8 @@ export const verificationController = {
 
     res.json({
       success: true,
-      message: "Document verification completed",
+      verificationStatus: result.verificationStatus,
+      message: result.message,
       data: result
     });
   },

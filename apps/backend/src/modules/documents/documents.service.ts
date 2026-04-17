@@ -87,12 +87,24 @@ export const documentsService = {
       await auditService.createLog({
         action: "DOCUMENT_UPLOADED",
         documentId: created.id,
+        actorUserId: input.uploaderId,
         uploadedById: input.uploaderId,
         metadataSnapshot: {
           documentCode: created.documentCode,
           fileName: created.fileName,
-          fileHash: created.fileHash,
-          txHash: chainResult.txHash
+          fileHash: created.fileHash
+        }
+      });
+
+      await auditService.createLog({
+        action: "DOCUMENT_REGISTERED_ON_CHAIN",
+        documentId: created.id,
+        actorUserId: input.uploaderId,
+        uploadedById: input.uploaderId,
+        metadataSnapshot: {
+          txHash: chainResult.txHash,
+          blockNumber: chainResult.blockNumber,
+          chainTimestamp: new Date().toISOString()
         }
       });
     } catch (error) {
@@ -115,7 +127,7 @@ export const documentsService = {
     }
     return finalDocument;
   },
-  getDocumentById: async (id: string) => {
+  getDocumentById: async (id: string, actorUserId?: string) => {
     const document = await prisma.document.findUnique({
       where: { id },
       include: {
@@ -137,6 +149,18 @@ export const documentsService = {
     const onChain = await blockchainService.getDocumentById(document.id);
     if (!onChain) {
       throw new AppError("Document metadata is missing on blockchain", 409, "BLOCKCHAIN_RECORD_MISSING");
+    }
+
+    if (actorUserId) {
+      await auditService.createLog({
+        action: "DOCUMENT_VIEWED",
+        documentId: document.id,
+        actorUserId,
+        metadataSnapshot: {
+          viewedAt: new Date().toISOString(),
+          documentCode: document.documentCode
+        }
+      });
     }
     return {
       ...document,

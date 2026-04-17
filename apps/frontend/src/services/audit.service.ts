@@ -7,5 +7,9 @@ export const auditService = {
       params: query
     });
     return res.data.data;
+  },
+  async getDocumentAuditHistory(documentId: string) {
+    const res = await http.get<ApiResponse<AuditTrail[]>>(`/audit/document/${documentId}`);
+    return res.data.data;
   }
 };

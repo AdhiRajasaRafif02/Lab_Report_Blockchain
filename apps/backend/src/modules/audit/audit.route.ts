@@ -4,6 +4,7 @@ import { requireRoles } from "../../middlewares/role.middleware.js";
 import { validate } from "../../middlewares/validate.middleware.js";
 import { asyncHandler } from "../../utils/async-handler.js";
 import { auditController } from "./audit.controller.js";
+import { documentAuditParamSchema } from "./audit.params.js";
 import { listAuditQuerySchema } from "./audit.schema.js";
 
 export const auditRouter = Router();
@@ -14,4 +15,11 @@ auditRouter.get(
   requireRoles("admin", "verifier"),
   validate(listAuditQuerySchema, "query"),
   asyncHandler(auditController.listAuditLogs)
+);
+
+auditRouter.get(
+  "/document/:documentId",
+  requireAuth,
+  validate(documentAuditParamSchema, "params"),
+  asyncHandler(auditController.getDocumentAuditHistory)
 );

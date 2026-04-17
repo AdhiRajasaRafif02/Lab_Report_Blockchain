@@ -9,5 +9,13 @@ export const auditController = {
       message: "Audit logs fetched",
       data: result
     });
+  },
+  getDocumentAuditHistory: async (req: Request, res: Response) => {
+    const items = await auditService.getDocumentAuditHistory(req.params.documentId);
+    res.json({
+      success: true,
+      message: "Document audit history fetched",
+      data: items
+    });
   }
 };

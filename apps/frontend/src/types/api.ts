@@ -1,6 +1,7 @@
 export type UserRole = "admin" | "lab_staff" | "verifier" | "user";
 export type DocumentStatus = "active" | "revoked";
 export type VerifyResult = "authentic" | "tampered" | "revoked" | "not_found";
+export type VerificationStatus = "AUTHENTIC" | "REVOKED" | "MISMATCH" | "NOT_FOUND";
 
 export type ApiResponse<T> = {
   success: boolean;
@@ -61,13 +62,20 @@ export type OnChainDocument = {
 
 export type AuditTrail = {
   id: string;
-  action: string;
+  action:
+    | "DOCUMENT_UPLOADED"
+    | "DOCUMENT_REGISTERED_ON_CHAIN"
+    | "DOCUMENT_VIEWED"
+    | "DOCUMENT_VERIFICATION_ATTEMPTED"
+    | "DOCUMENT_REVOKED";
   documentId: string | null;
+  actorUserId: string | null;
   uploadedById: string | null;
   verifiedById: string | null;
   revokedById: string | null;
   metadataSnapshot: Record<string, unknown> | null;
   createdAt: string;
+  actor?: UploadedBy | null;
 };
 
 export type Revocation = {
@@ -112,8 +120,31 @@ export type VerificationRecord = {
 };
 
 export type VerifyResponse = {
-  verification: VerificationRecord;
-  document: DocumentItem | null;
-  onChain: OnChainDocument | null;
-  result: VerifyResult;
+  verificationStatus: VerificationStatus;
+  message: string;
+  verificationRecord: {
+    id: string;
+    comparedAt: string;
+  };
+  matchedDocument: {
+    id: string;
+    documentCode: string;
+    fileName: string;
+    documentType: string;
+    status: DocumentStatus;
+    txHash: string | null;
+    uploadedAt: string;
+  } | null;
+  onChainProof: {
+    documentId: string;
+    fileHash: string;
+    isRevoked: boolean;
+    registeredAt: string;
+    revocationReason: string | null;
+  } | null;
+  timestamps: {
+    verifiedAt: string;
+    onChainRegisteredAt: string | null;
+  };
+  computedHash: string;
 };

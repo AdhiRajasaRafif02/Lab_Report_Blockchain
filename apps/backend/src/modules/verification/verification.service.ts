@@ -5,6 +5,32 @@ import { sha256Hex } from "../../utils/crypto.js";
 import { auditService } from "../audit/audit.service.js";
 import { blockchainService } from "../blockchain/blockchain.service.js";
 
+type VerificationStatus = "AUTHENTIC" | "REVOKED" | "MISMATCH" | "NOT_FOUND";
+type VerificationDocument = {
+  id: string;
+  documentCode: string;
+  fileName: string;
+  documentType: string;
+  status: "active" | "revoked";
+  txHash: string | null;
+  uploadedAt: Date;
+  fileHash: string;
+};
+
+const statusToDbResult = (status: VerificationStatus): "authentic" | "revoked" | "tampered" | "not_found" => {
+  if (status === "AUTHENTIC") return "authentic";
+  if (status === "REVOKED") return "revoked";
+  if (status === "MISMATCH") return "tampered";
+  return "not_found";
+};
+
+const messageByStatus: Record<VerificationStatus, string> = {
+  AUTHENTIC: "Hash matches a registered active document.",
+  REVOKED: "Hash matches a registered document, but the document is revoked.",
+  MISMATCH: "Provided document ID does not match uploaded file hash.",
+  NOT_FOUND: "No registered hash matches this uploaded file."
+};
+
 export const verificationService = {
   verifyUploadedFile: async (input: {
     file: Express.Multer.File | undefined;
@@ -14,74 +40,151 @@ export const verificationService = {
     if (!input.file) {
       throw new AppError("File is required", 400, "FILE_REQUIRED");
     }
-
-    const fileBuffer = await fs.readFile(input.file.path);
-    const computedHash = sha256Hex(fileBuffer);
-
-    const verifyChain = await blockchainService.verifyDocumentHash(computedHash);
-    const onChainDoc = verifyChain.exists
-      ? await blockchainService.getDocumentByHash(computedHash)
-      : null;
-    if (verifyChain.exists && !onChainDoc) {
-      throw new AppError(
-        "Inconsistent blockchain state: hash exists but record lookup failed",
-        409,
-        "BLOCKCHAIN_INCONSISTENT_STATE"
-      );
+    if (input.file.mimetype !== "application/pdf") {
+      throw new AppError("Only PDF files are allowed", 400, "INVALID_FILE_TYPE");
+    }
+    if (input.file.size <= 0) {
+      throw new AppError("Uploaded file is empty", 400, "EMPTY_FILE");
     }
 
-    const document = verifyChain.exists
-      ? await prisma.document.findFirst({
-          where: { id: verifyChain.documentId },
-          include: { revocation: true }
-        })
-      : null;
+    let computedHash = "";
+    try {
+      const fileBuffer = await fs.readFile(input.file.path);
+      computedHash = sha256Hex(fileBuffer);
 
-    let result: "authentic" | "tampered" | "revoked" | "not_found";
-    if (!verifyChain.exists) {
-      result = "not_found";
-    } else if (input.documentId && verifyChain.documentId !== input.documentId) {
-      result = "tampered";
-    } else if (verifyChain.isRevoked) {
-      result = "revoked";
-    } else {
-      result = "authentic";
+      const verifyChain = await blockchainService.verifyDocumentHash(computedHash);
+      const onChainByHash = verifyChain.exists
+        ? await blockchainService.getDocumentByHash(computedHash)
+        : null;
+      if (verifyChain.exists && !onChainByHash) {
+        throw new AppError(
+          "Inconsistent blockchain state: hash exists but record lookup failed",
+          409,
+          "BLOCKCHAIN_INCONSISTENT_STATE"
+        );
+      }
+
+      const matchedDocument: VerificationDocument | null = verifyChain.exists
+        ? await prisma.document.findFirst({
+            where: { id: verifyChain.documentId },
+            select: {
+              id: true,
+              documentCode: true,
+              fileName: true,
+              documentType: true,
+              status: true,
+              txHash: true,
+              uploadedAt: true,
+              fileHash: true
+            }
+          })
+        : null;
+
+      let verificationStatus: VerificationStatus = "NOT_FOUND";
+      let expectedDocument: VerificationDocument | null = null;
+
+      if (input.documentId) {
+        expectedDocument = await prisma.document.findUnique({
+          where: { id: input.documentId },
+          select: {
+            id: true,
+            documentCode: true,
+            fileName: true,
+            documentType: true,
+            status: true,
+            txHash: true,
+            uploadedAt: true,
+            fileHash: true
+          }
+        });
+
+        if (!expectedDocument) {
+          verificationStatus = "NOT_FOUND";
+        } else if (expectedDocument.fileHash !== computedHash) {
+          verificationStatus = "MISMATCH";
+        } else if (expectedDocument.status === "revoked" || verifyChain.isRevoked) {
+          verificationStatus = "REVOKED";
+        } else {
+          verificationStatus = "AUTHENTIC";
+        }
+      } else {
+        if (!verifyChain.exists) {
+          verificationStatus = "NOT_FOUND";
+        } else if (verifyChain.isRevoked) {
+          verificationStatus = "REVOKED";
+        } else {
+          verificationStatus = "AUTHENTIC";
+        }
+      }
+
+      const verification = await prisma.verification.create({
+        data: {
+          documentId: matchedDocument?.id ?? expectedDocument?.id ?? null,
+          verifierUserId: input.verifierUserId,
+          uploadedFileName: input.file.originalname,
+          computedHash,
+          result: statusToDbResult(verificationStatus),
+          notes:
+            verificationStatus === "MISMATCH"
+              ? "Expected document exists but uploaded file hash differs from registered hash."
+              : verificationStatus === "NOT_FOUND"
+                ? "No matching on-chain hash found for uploaded file."
+                : undefined
+        }
+      });
+
+      await auditService.createLog({
+        action: "DOCUMENT_VERIFICATION_ATTEMPTED",
+        documentId: matchedDocument?.id ?? expectedDocument?.id ?? undefined,
+        actorUserId: input.verifierUserId,
+        verifiedById: input.verifierUserId,
+        metadataSnapshot: {
+          verificationId: verification.id,
+          verificationStatus,
+          computedHash,
+          expectedDocumentId: input.documentId ?? null,
+          matchedOnChainDocumentId: verifyChain.documentId || null
+        }
+      });
+
+      const responseDocument = expectedDocument ?? matchedDocument ?? null;
+
+      return {
+        verificationStatus,
+        message: messageByStatus[verificationStatus],
+        verificationRecord: {
+          id: verification.id,
+          comparedAt: verification.comparedAt
+        },
+        matchedDocument: responseDocument
+          ? {
+              id: responseDocument.id,
+              documentCode: responseDocument.documentCode,
+              fileName: responseDocument.fileName,
+              documentType: responseDocument.documentType,
+              status: responseDocument.status,
+              txHash: responseDocument.txHash,
+              uploadedAt: responseDocument.uploadedAt
+            }
+          : null,
+        onChainProof: onChainByHash
+          ? {
+              documentId: onChainByHash.documentId,
+              fileHash: onChainByHash.fileHash,
+              isRevoked: onChainByHash.isRevoked,
+              registeredAt: onChainByHash.registeredAt,
+              revocationReason: onChainByHash.revokedReason || null
+            }
+          : null,
+        timestamps: {
+          verifiedAt: verification.comparedAt,
+          onChainRegisteredAt: onChainByHash?.registeredAt ?? null
+        },
+        computedHash
+      };
+    } finally {
+      await fs.unlink(input.file.path).catch(() => undefined);
     }
-
-    const verification = await prisma.verification.create({
-      data: {
-        documentId: document?.id,
-        verifierUserId: input.verifierUserId,
-        uploadedFileName: input.file.originalname,
-        computedHash,
-        result,
-        notes:
-          result === "not_found"
-            ? "No matching on-chain hash found"
-            : result === "tampered"
-              ? "Hash belongs to a different document than requested"
-              : undefined
-      }
-    });
-
-    await auditService.createLog({
-      action: "DOCUMENT_VERIFIED",
-      documentId: document?.id,
-      verifiedById: input.verifierUserId,
-      metadataSnapshot: {
-        verificationId: verification.id,
-        result: verification.result,
-        computedHash,
-        onChainDocumentId: verifyChain.documentId
-      }
-    });
-
-    return {
-      verification,
-      document,
-      onChain: onChainDoc,
-      result
-    };
   },
   listHistory: async (query: {
     documentId?: string;

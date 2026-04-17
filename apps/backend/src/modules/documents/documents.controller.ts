@@ -16,7 +16,7 @@ export const documentsController = {
     });
   },
   getDocumentById: async (req: Request, res: Response) => {
-    const document = await documentsService.getDocumentById(req.params.id);
+    const document = await documentsService.getDocumentById(req.params.id, req.authUser?.id);
     res.json({
       success: true,
       message: "Document fetched",

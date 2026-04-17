@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { documentsService } from "../services/documents.service";
+import { auditService } from "../services/audit.service";
 import { LoadingState } from "../components/LoadingState";
 import { StatusBadge } from "../components/StatusBadge";
 import { AuditTimeline } from "../components/AuditTimeline";
@@ -11,6 +12,11 @@ export const DocumentDetailPage = () => {
   const { data, isLoading } = useQuery({
     queryKey: ["document-detail", id],
     queryFn: () => documentsService.getDocumentById(id || ""),
+    enabled: !!id
+  });
+  const auditQuery = useQuery({
+    queryKey: ["document-audit", id],
+    queryFn: () => auditService.getDocumentAuditHistory(id || ""),
     enabled: !!id
   });
 
@@ -43,7 +49,7 @@ export const DocumentDetailPage = () => {
         </div>
       </div>
 
-      <AuditTimeline items={data.auditTrails || []} />
+      <AuditTimeline items={auditQuery.data || data.auditTrails || []} />
     </div>
   );
 };

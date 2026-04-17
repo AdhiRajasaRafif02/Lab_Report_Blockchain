@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const verifyDocumentBodySchema = z.object({
-  documentId: z.string().optional()
+  documentId: z.string().min(1).max(100).optional()
 });
 
 export const verificationHistoryQuerySchema = z.object({
