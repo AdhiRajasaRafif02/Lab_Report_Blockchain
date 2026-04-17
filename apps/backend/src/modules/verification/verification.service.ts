@@ -3,6 +3,7 @@ import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../utils/app-error.js";
 import { sha256Hex } from "../../utils/crypto.js";
 import { auditService } from "../audit/audit.service.js";
+import { blockchainService } from "../blockchain/blockchain.service.js";
 
 export const verificationService = {
   verifyUploadedFile: async (input: {
@@ -17,17 +18,31 @@ export const verificationService = {
     const fileBuffer = await fs.readFile(input.file.path);
     const computedHash = sha256Hex(fileBuffer);
 
-    const document = await prisma.document.findFirst({
-      where: { fileHash: computedHash },
-      include: { revocation: true }
-    });
+    const verifyChain = await blockchainService.verifyDocumentHash(computedHash);
+    const onChainDoc = verifyChain.exists
+      ? await blockchainService.getDocumentByHash(computedHash)
+      : null;
+    if (verifyChain.exists && !onChainDoc) {
+      throw new AppError(
+        "Inconsistent blockchain state: hash exists but record lookup failed",
+        409,
+        "BLOCKCHAIN_INCONSISTENT_STATE"
+      );
+    }
+
+    const document = verifyChain.exists
+      ? await prisma.document.findFirst({
+          where: { id: verifyChain.documentId },
+          include: { revocation: true }
+        })
+      : null;
 
     let result: "authentic" | "tampered" | "revoked" | "not_found";
-    if (!document) {
+    if (!verifyChain.exists) {
       result = "not_found";
-    } else if (input.documentId && document.id !== input.documentId) {
+    } else if (input.documentId && verifyChain.documentId !== input.documentId) {
       result = "tampered";
-    } else if (document.status === "revoked") {
+    } else if (verifyChain.isRevoked) {
       result = "revoked";
     } else {
       result = "authentic";
@@ -42,7 +57,7 @@ export const verificationService = {
         result,
         notes:
           result === "not_found"
-            ? "No matching registered hash found"
+            ? "No matching on-chain hash found"
             : result === "tampered"
               ? "Hash belongs to a different document than requested"
               : undefined
@@ -56,13 +71,15 @@ export const verificationService = {
       metadataSnapshot: {
         verificationId: verification.id,
         result: verification.result,
-        computedHash
+        computedHash,
+        onChainDocumentId: verifyChain.documentId
       }
     });
 
     return {
       verification,
       document,
+      onChain: onChainDoc,
       result
     };
   },

@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../utils/app-error.js";
 import { sha256Hex } from "../../utils/crypto.js";
 import { auditService } from "../audit/audit.service.js";
+import { blockchainService } from "../blockchain/blockchain.service.js";
 import type { ListDocumentsQuery } from "./documents.types.js";
 
 const mapDateRange = (fromDate?: string, toDate?: string) => {
@@ -45,6 +46,7 @@ export const documentsService = {
       throw new AppError("This exact file hash is already registered", 409, "DOCUMENT_HASH_EXISTS");
     }
 
+    // Files stay off-chain for cost/privacy; chain stores hash proof for integrity and provenance.
     const created = await prisma.document.create({
       data: {
         documentCode: input.body.documentCode,
@@ -63,18 +65,55 @@ export const documentsService = {
       }
     });
 
-    await auditService.createLog({
-      action: "DOCUMENT_UPLOADED",
-      documentId: created.id,
-      uploadedById: input.uploaderId,
-      metadataSnapshot: {
-        documentCode: created.documentCode,
+    try {
+      // Hash is registered on-chain to provide immutable integrity proof and timestamp provenance.
+      const chainResult = await blockchainService.registerDocument({
+        documentId: created.id,
+        fileHash,
         fileName: created.fileName,
-        fileHash: created.fileHash
+        documentType: created.documentType,
+        institutionName: created.institutionName ?? undefined
+      });
+
+      await prisma.document.update({
+        where: { id: created.id },
+        data: {
+          txHash: chainResult.txHash,
+          blockNumber: BigInt(chainResult.blockNumber),
+          chainTimestamp: new Date()
+        }
+      });
+
+      await auditService.createLog({
+        action: "DOCUMENT_UPLOADED",
+        documentId: created.id,
+        uploadedById: input.uploaderId,
+        metadataSnapshot: {
+          documentCode: created.documentCode,
+          fileName: created.fileName,
+          fileHash: created.fileHash,
+          txHash: chainResult.txHash
+        }
+      });
+    } catch (error) {
+      // Keep DB/chain consistency: if chain write fails, remove DB record and uploaded file.
+      await prisma.document.delete({ where: { id: created.id } });
+      await fs.unlink(input.file.path).catch(() => undefined);
+      throw error;
+    }
+
+    const finalDocument = await prisma.document.findUnique({
+      where: { id: created.id },
+      include: {
+        uploadedBy: {
+          select: { id: true, email: true, fullName: true, role: true }
+        }
       }
     });
-
-    return created;
+    if (!finalDocument) {
+      throw new AppError("Document not found after registration", 500, "DOCUMENT_PERSISTENCE_ERROR");
+    }
+    return finalDocument;
   },
   getDocumentById: async (id: string) => {
     const document = await prisma.document.findUnique({
@@ -83,7 +122,11 @@ export const documentsService = {
         uploadedBy: {
           select: { id: true, email: true, fullName: true, role: true }
         },
-        revocation: true
+        revocation: true,
+        auditTrails: {
+          orderBy: { createdAt: "desc" },
+          take: 100
+        }
       }
     });
 
@@ -91,7 +134,14 @@ export const documentsService = {
       throw new AppError("Document not found", 404, "DOCUMENT_NOT_FOUND");
     }
 
-    return document;
+    const onChain = await blockchainService.getDocumentById(document.id);
+    if (!onChain) {
+      throw new AppError("Document metadata is missing on blockchain", 409, "BLOCKCHAIN_RECORD_MISSING");
+    }
+    return {
+      ...document,
+      onChain
+    };
   },
   listDocuments: async (query: ListDocumentsQuery) => {
     const where: Prisma.DocumentWhereInput = {

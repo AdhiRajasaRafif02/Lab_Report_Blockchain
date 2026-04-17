@@ -11,7 +11,10 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default("1d"),
   BCRYPT_SALT_ROUNDS: z.coerce.number().int().min(4).max(15).default(10),
   UPLOAD_DIR: z.string().default("uploads"),
-  MAX_FILE_SIZE_MB: z.coerce.number().int().positive().default(10)
+  MAX_FILE_SIZE_MB: z.coerce.number().int().positive().default(10),
+  BLOCKCHAIN_RPC_URL: z.string().url(),
+  BLOCKCHAIN_CONTRACT_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  BLOCKCHAIN_PRIVATE_KEY: z.string().regex(/^0x[a-fA-F0-9]{64}$/)
 });
 
 export const env = envSchema.parse(process.env);

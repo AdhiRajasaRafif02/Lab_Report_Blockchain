@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../utils/app-error.js";
 import { auditService } from "../audit/audit.service.js";
+import { blockchainService } from "../blockchain/blockchain.service.js";
 
 export const revocationService = {
   revokeDocument: async (input: { documentId: string; reason: string; revokedById: string }) => {
@@ -15,18 +16,26 @@ export const revocationService = {
       throw new AppError("Document already revoked", 409, "DOCUMENT_ALREADY_REVOKED");
     }
 
+    const chainResult = await blockchainService.revokeDocument(input.documentId, input.reason);
+
     const result = await prisma.$transaction(async (tx) => {
       const revocation = await tx.revocation.create({
         data: {
           documentId: input.documentId,
           reason: input.reason,
-          revokedById: input.revokedById
+          revokedById: input.revokedById,
+          txHash: chainResult.txHash
         }
       });
 
       const updatedDocument = await tx.document.update({
         where: { id: input.documentId },
-        data: { status: "revoked" }
+        data: {
+          status: "revoked",
+          txHash: chainResult.txHash,
+          blockNumber: BigInt(chainResult.blockNumber),
+          chainTimestamp: new Date()
+        }
       });
 
       return { revocation, updatedDocument };
@@ -37,7 +46,8 @@ export const revocationService = {
       documentId: input.documentId,
       revokedById: input.revokedById,
       metadataSnapshot: {
-        reason: input.reason
+        reason: input.reason,
+        txHash: chainResult.txHash
       }
     });
 
