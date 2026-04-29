@@ -1,13 +1,12 @@
 import { expect } from "chai";
 import { anyValue } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 import { ethers } from "hardhat";
-import type { LabReportRegistry } from "../typechain-types/contracts/LabReportRegistry";
 
 describe("LabReportRegistry", function () {
   async function deployFixture() {
     const [owner, registrar, outsider] = await ethers.getSigners();
     const factory = await ethers.getContractFactory("LabReportRegistry");
-    const contract = (await factory.deploy()) as LabReportRegistry;
+    const contract = await factory.deploy();
     await contract.waitForDeployment();
     return { contract, owner, registrar, outsider };
   }
@@ -46,6 +45,17 @@ describe("LabReportRegistry", function () {
     ).to.be.revertedWith("Hash already registered");
   });
 
+  it("rejects duplicate document id registration", async function () {
+    const { contract } = await deployFixture();
+    const hash1 = makeHash("id-dup-1");
+    const hash2 = makeHash("id-dup-2");
+
+    await contract.registerDocument("DOC-DUP", hash1, "a.pdf", "xray", "Lab A");
+    await expect(
+      contract.registerDocument("DOC-DUP", hash2, "b.pdf", "xray", "Lab B")
+    ).to.be.revertedWith("Document already registered");
+  });
+
   it("supports valid lookups by hash and id", async function () {
     const { contract } = await deployFixture();
     const hash = makeHash("lookup-hash");
@@ -71,6 +81,14 @@ describe("LabReportRegistry", function () {
     expect(status.exists).to.equal(true);
     expect(status.isRevoked).to.equal(true);
     expect(status.revocationReason).to.equal("Test invalidated");
+  });
+
+  it("rejects revocation without reason", async function () {
+    const { contract } = await deployFixture();
+    const hash = makeHash("need-reason");
+    await contract.registerDocument("DOC-REASON", hash, "x.pdf", "blood_test", "Lab X");
+
+    await expect(contract.revokeDocument("DOC-REASON", "")).to.be.revertedWith("Reason required");
   });
 
   it("blocks unauthorized registration and revocation actions", async function () {

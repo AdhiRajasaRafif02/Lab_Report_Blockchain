@@ -72,7 +72,7 @@ Lab_Report_Blockchain/
 ## Setup Instructions
 
 1. Install dependencies:
-   - `npm install`
+   - `npm install --include=dev`
 2. Create env files:
    - copy `apps/backend/.env.example` to `apps/backend/.env`
    - copy `apps/frontend/.env.example` to `apps/frontend/.env`
@@ -157,3 +157,32 @@ Contract: `packages/contracts/contracts/LabReportRegistry.sol`
 - revocation flow
 - revoked status query
 - unauthorized registration/revocation rejection
+
+## Practical Testing Strategy
+
+### Backend (Vitest)
+- **Unit tests with mocks** for services that depend on Prisma, blockchain, and filesystem:
+  - `auth.service` (register/login + duplicate prevention)
+  - `documents.service` (upload/hash/registration + duplicate checks + rollback)
+  - `verification.service` (AUTHENTIC/REVOKED/MISMATCH/NOT_FOUND accuracy)
+  - `revocation.service` (revoke behavior + audit creation)
+- **Critical integration test** with `supertest`:
+  - route protection and RBAC behavior on real Express app wiring
+
+### Smart Contract (Hardhat)
+- Contract-level tests for registration, duplicate prevention, lookups, revocation, status queries, and unauthorized actions.
+
+### Mock strategy
+- Backend tests mock:
+  - Prisma client (`src/tests/mocks/prisma.mock.ts`)
+  - Blockchain service (ethers/contract writes)
+  - Audit service
+- Integration test keeps middleware/router wiring real and validates real HTTP responses.
+
+### Test commands
+1. Backend tests:
+   - `npm run test --workspace @lab/backend`
+2. Smart contract tests:
+   - `npm run test --workspace @lab/contracts`
+3. All tests (workspace):
+   - `npm run test`
