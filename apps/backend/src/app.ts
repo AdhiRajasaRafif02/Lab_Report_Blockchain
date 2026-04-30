@@ -10,6 +10,7 @@ import { apiRouter } from "./modules/index.js";
 
 export const createApp = () => {
   const app = express();
+  app.set("json replacer", (_key, value) => (typeof value === "bigint" ? value.toString() : value));
 
   app.use(helmet());
   app.use(cors());

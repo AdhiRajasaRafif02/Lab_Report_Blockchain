@@ -1,4 +1,5 @@
 import { useState } from "react";
+import axios from "axios";
 import { useMutation } from "@tanstack/react-query";
 import { documentsService } from "../services/documents.service";
 import { PageHeader } from "../components/PageHeader";
@@ -10,16 +11,45 @@ export const UploadPage = () => {
   const [institutionName, setInstitutionName] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [formError, setFormError] = useState("");
+  const [serverError, setServerError] = useState("");
+  const maxFileSizeMb = 10;
 
   const uploadMutation = useMutation({
-    mutationFn: documentsService.uploadDocument
+    mutationFn: documentsService.uploadDocument,
+    onError: (error) => {
+      if (axios.isAxiosError(error)) {
+        const data = error.response?.data as
+          | {
+              message?: string;
+              details?: { fieldErrors?: Record<string, string[]> };
+            }
+          | undefined;
+        const fieldErrors = data?.details?.fieldErrors;
+        const firstField = fieldErrors ? Object.keys(fieldErrors)[0] : undefined;
+        const firstMessage = firstField ? fieldErrors?.[firstField]?.[0] : undefined;
+        setServerError(firstMessage || data?.message || "Upload failed. Please try again.");
+        return;
+      }
+      setServerError("Upload failed. Please try again.");
+    }
   });
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) return setFormError("Please select a PDF file.");
+    if (file.type !== "application/pdf") return setFormError("Only PDF files are allowed.");
+    if (file.size === 0) return setFormError("Selected file is empty.");
+    if (file.size > maxFileSizeMb * 1024 * 1024) {
+      return setFormError(`File is too large. Max size is ${maxFileSizeMb}MB.`);
+    }
     if (!documentCode || !documentType) return setFormError("Document code and type are required.");
+    if (documentCode.trim().length < 2) return setFormError("Document code must be at least 2 characters.");
+    if (documentType.trim().length < 2) return setFormError("Document type must be at least 2 characters.");
+    if (institutionName && institutionName.trim().length < 2) {
+      return setFormError("Institution name must be at least 2 characters.");
+    }
     setFormError("");
+    setServerError("");
     uploadMutation.mutate({ file, documentCode, documentType, institutionName: institutionName || undefined });
   };
 
@@ -46,6 +76,7 @@ export const UploadPage = () => {
           <input type="file" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
         </div>
         {formError ? <p className="text-sm text-rose-600">{formError}</p> : null}
+        {serverError ? <p className="text-sm text-rose-600">{serverError}</p> : null}
         <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white" disabled={uploadMutation.isPending}>
           {uploadMutation.isPending ? "Registering..." : "Register Document"}
         </button>
