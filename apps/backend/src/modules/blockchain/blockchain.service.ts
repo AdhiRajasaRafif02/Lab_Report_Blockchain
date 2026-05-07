@@ -1,11 +1,11 @@
-import { Contract, JsonRpcProvider, Wallet, type TransactionReceipt } from "ethers";
+import { Contract, JsonRpcProvider, NonceManager, Wallet, type TransactionReceipt } from "ethers";
 import { env } from "../../config/env.js";
 import abi from "../../lib/lab-report-registry.abi.json";
 import { AppError } from "../../utils/app-error.js";
 import type { OnChainDocument, VerifyHashResult } from "./blockchain.types.js";
 
 const provider = new JsonRpcProvider(env.BLOCKCHAIN_RPC_URL);
-const signer = new Wallet(env.BLOCKCHAIN_PRIVATE_KEY, provider);
+const signer = new NonceManager(new Wallet(env.BLOCKCHAIN_PRIVATE_KEY, provider));
 // ABI is checked into backend so the API can run independently from Hardhat artifact folders.
 const contract = new Contract(env.BLOCKCHAIN_CONTRACT_ADDRESS, abi, signer);
 

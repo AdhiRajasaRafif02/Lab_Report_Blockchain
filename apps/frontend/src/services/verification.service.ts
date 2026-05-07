@@ -14,6 +14,13 @@ export const verificationService = {
     });
     return res.data.data;
   },
+  async verifyHash(payload: { hash: string; documentId?: string }) {
+    const res = await http.post<ApiResponse<VerifyResponse>>("/verify/hash", {
+      hash: payload.hash,
+      documentId: payload.documentId
+    });
+    return res.data.data;
+  },
   async getVerificationHistory(query: { documentId?: string; result?: string; page?: number; limit?: number }) {
     const res = await http.get<ApiResponse<Paginated<VerificationRecord>>>("/verify/history", { params: query });
     return res.data.data;

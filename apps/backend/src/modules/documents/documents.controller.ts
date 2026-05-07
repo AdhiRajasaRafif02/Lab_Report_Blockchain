@@ -23,6 +23,13 @@ export const documentsController = {
       data: document
     });
   },
+  getDocumentFile: async (req: Request, res: Response) => {
+    const file = await documentsService.getDocumentFile(req.params.id);
+
+    res.setHeader("Content-Type", file.mimeType || "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename=\"${file.fileName}\"`);
+    res.sendFile(file.absoluteFilePath);
+  },
   listDocuments: async (req: Request, res: Response) => {
     const result = await documentsService.listDocuments(req.query as never);
     res.json({

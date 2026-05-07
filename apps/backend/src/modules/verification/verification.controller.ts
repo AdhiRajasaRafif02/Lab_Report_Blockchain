@@ -2,6 +2,20 @@ import type { Request, Response } from "express";
 import { verificationService } from "./verification.service.js";
 
 export const verificationController = {
+  verifyHash: async (req: Request, res: Response) => {
+    const result = await verificationService.verifyHash({
+      hash: req.body.hash,
+      verifierUserId: req.authUser!.id,
+      documentId: req.body.documentId
+    });
+
+    res.json({
+      success: true,
+      verificationStatus: result.verificationStatus,
+      message: result.message,
+      data: result
+    });
+  },
   verifyDocument: async (req: Request, res: Response) => {
     const result = await verificationService.verifyUploadedFile({
       file: req.file,

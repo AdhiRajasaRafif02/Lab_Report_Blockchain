@@ -1,4 +1,4 @@
-import type { AuditAction } from "@prisma/client";
+import type { AuditAction, Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import type { AuditMetadata } from "./audit.types.js";
 
@@ -27,7 +27,7 @@ export const auditService = {
         uploadedById: input.uploadedById,
         verifiedById: input.verifiedById,
         revokedById: input.revokedById,
-        metadataSnapshot: input.metadataSnapshot ?? undefined
+        metadataSnapshot: (input.metadataSnapshot ?? undefined) as Prisma.InputJsonValue | undefined
       }
     });
   },

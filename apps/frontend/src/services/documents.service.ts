@@ -34,5 +34,11 @@ export const documentsService = {
   async getDocumentById(id: string) {
     const res = await http.get<ApiResponse<DocumentDetail>>(`/documents/${id}`);
     return res.data.data;
+  },
+  async getDocumentFile(id: string) {
+    const res = await http.get<Blob>(`/documents/${id}/file`, {
+      responseType: "blob"
+    });
+    return res.data;
   }
 };

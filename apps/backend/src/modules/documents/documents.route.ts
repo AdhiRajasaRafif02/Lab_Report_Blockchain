@@ -24,12 +24,21 @@ documentsRouter.post(
 documentsRouter.get(
   "/",
   requireAuth,
+  requireRoles("admin", "lab_staff", "verifier"),
   validate(listDocumentsQuerySchema, "query"),
   asyncHandler(documentsController.listDocuments)
 );
 documentsRouter.get(
+  "/:id/file",
+  requireAuth,
+  requireRoles("admin", "lab_staff"),
+  validate(documentIdParamSchema, "params"),
+  asyncHandler(documentsController.getDocumentFile)
+);
+documentsRouter.get(
   "/:id",
   requireAuth,
+  requireRoles("admin", "lab_staff", "verifier"),
   validate(documentIdParamSchema, "params"),
   asyncHandler(documentsController.getDocumentById)
 );

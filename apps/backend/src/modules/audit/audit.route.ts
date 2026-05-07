@@ -20,6 +20,7 @@ auditRouter.get(
 auditRouter.get(
   "/document/:documentId",
   requireAuth,
+  requireRoles("admin", "lab_staff", "verifier"),
   validate(documentAuditParamSchema, "params"),
   asyncHandler(auditController.getDocumentAuditHistory)
 );

@@ -17,11 +17,20 @@ export const App = () => {
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route path="/" element={<DashboardPage />} />
-          <Route path="/documents" element={<DocumentsListPage />} />
-          <Route path="/documents/:id" element={<DocumentDetailPage />} />
           <Route path="/verify" element={<VerifyPage />} />
-          <Route path="/upload" element={<UploadPage />} />
-          <Route path="/admin" element={<AdminPage />} />
+
+          <Route element={<ProtectedRoute roles={["admin", "lab_staff"]} />}>
+            <Route path="/upload" element={<UploadPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute roles={["admin", "lab_staff", "verifier"]} />}>
+            <Route path="/documents" element={<DocumentsListPage />} />
+            <Route path="/documents/:id" element={<DocumentDetailPage />} />
+          </Route>
+
+          <Route element={<ProtectedRoute roles={["admin"]} />}>
+            <Route path="/admin" element={<AdminPage />} />
+          </Route>
         </Route>
       </Route>
 

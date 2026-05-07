@@ -7,12 +7,12 @@ import { LoadingState } from "../components/LoadingState";
 import { PageHeader } from "../components/PageHeader";
 
 export const DocumentsListPage = () => {
-  const [status, setStatus] = useState<string>("");
+  const [status, setStatus] = useState<"" | "active" | "revoked">("");
   const [search, setSearch] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["documents", status],
-    queryFn: () => documentsService.listDocuments({ status: status || undefined, limit: 100 })
+    queryFn: () => documentsService.listDocuments({ status: status === "" ? undefined : status, limit: 100 })
   });
 
   const filtered = useMemo(() => {
@@ -42,7 +42,7 @@ export const DocumentsListPage = () => {
           <select
             className="rounded-lg border px-3 py-2 text-sm"
             value={status}
-            onChange={(e) => setStatus(e.target.value)}
+            onChange={(e) => setStatus(e.target.value as "" | "active" | "revoked")}
           >
             <option value="">All status</option>
             <option value="active">Active</option>

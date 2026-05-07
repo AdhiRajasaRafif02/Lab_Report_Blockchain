@@ -10,6 +10,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
+    "chain:rehydrate": "tsx prisma/rehydrate-chain.ts",
     "pretest": "prisma generate",
     "test": "vitest run --passWithNoTests",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",

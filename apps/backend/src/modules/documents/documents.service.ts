@@ -1,10 +1,13 @@
 import fs from "node:fs/promises";
+import path from "node:path";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma.js";
 import { AppError } from "../../utils/app-error.js";
 import { sha256Hex } from "../../utils/crypto.js";
+import { sanitizeFileName } from "../../utils/fs.js";
 import { auditService } from "../audit/audit.service.js";
 import { blockchainService } from "../blockchain/blockchain.service.js";
+import { UPLOADS_DIR } from "../../config/constants.js";
 import type { ListDocumentsQuery } from "./documents.types.js";
 
 const mapDateRange = (fromDate?: string, toDate?: string) => {
@@ -199,6 +202,34 @@ export const documentsService = {
         limit: query.limit,
         totalPages: Math.ceil(total / query.limit)
       }
+    };
+  },
+  getDocumentFile: async (id: string) => {
+    const document = await prisma.document.findUnique({
+      where: { id },
+      select: { id: true, filePath: true, fileName: true, mimeType: true }
+    });
+
+    if (!document) {
+      throw new AppError("Document not found", 404, "DOCUMENT_NOT_FOUND");
+    }
+
+    const absoluteFilePath = path.resolve(document.filePath);
+    const absoluteUploadsDir = path.resolve(UPLOADS_DIR);
+    const uploadsPrefix = absoluteUploadsDir.endsWith(path.sep) ? absoluteUploadsDir : `${absoluteUploadsDir}${path.sep}`;
+
+    if (!absoluteFilePath.toLowerCase().startsWith(uploadsPrefix.toLowerCase())) {
+      throw new AppError("Invalid uploaded file path", 500, "INVALID_UPLOAD_PATH");
+    }
+
+    await fs.access(absoluteFilePath).catch(() => {
+      throw new AppError("Uploaded file not found on server", 404, "UPLOADED_FILE_MISSING");
+    });
+
+    return {
+      absoluteFilePath,
+      fileName: sanitizeFileName(document.fileName),
+      mimeType: document.mimeType
     };
   }
 };

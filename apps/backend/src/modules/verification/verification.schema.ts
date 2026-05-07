@@ -4,6 +4,11 @@ export const verifyDocumentBodySchema = z.object({
   documentId: z.string().min(1).max(100).optional()
 });
 
+export const verifyHashBodySchema = z.object({
+  hash: z.string().regex(/^(0x)?[a-fA-F0-9]{64}$/, "Invalid SHA-256 hex hash"),
+  documentId: z.string().min(1).max(100).optional()
+});
+
 export const verificationHistoryQuerySchema = z.object({
   documentId: z.string().optional(),
   result: z.enum(["authentic", "tampered", "revoked", "not_found"]).optional(),

@@ -11,7 +11,7 @@ export const revocationRouter = Router();
 revocationRouter.post(
   "/:documentId",
   requireAuth,
-  requireRoles("admin", "lab_staff"),
+  requireRoles("admin"),
   validate(revokeDocumentParamSchema, "params"),
   validate(revokeDocumentBodySchema),
   asyncHandler(revocationController.revokeDocument)

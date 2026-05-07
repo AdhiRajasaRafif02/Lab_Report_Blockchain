@@ -10,9 +10,9 @@ export const Layout = () => {
   const links = [
     { to: "/", label: "Dashboard", allow: true },
     { to: "/upload", label: "Upload", allow: hasRole(["admin", "lab_staff"]) },
-    { to: "/documents", label: "Documents", allow: true },
+    { to: "/documents", label: "Documents", allow: hasRole(["admin", "lab_staff", "verifier"]) },
     { to: "/verify", label: "Verify", allow: true },
-    { to: "/admin", label: "Admin", allow: hasRole(["admin", "lab_staff"]) }
+    { to: "/admin", label: "Admin", allow: hasRole(["admin"]) }
   ];
 
   return (
