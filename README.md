@@ -89,6 +89,137 @@ Lab_Report_Blockchain/
 8. Start frontend app (terminal 3):
    - `npm run dev:frontend`
 
+## Quick Start (Local Demo)
+
+This system runs 3 processes locally:
+- **Smart contract chain** (Hardhat node) on `http://127.0.0.1:8545`
+- **Backend API** (Express + Prisma + PostgreSQL) on `http://localhost:4000`
+- **Frontend** (Vite React) on `http://localhost:5173`
+
+### Prerequisites
+- Node.js (LTS recommended) + npm
+- PostgreSQL installed and running (no Docker)
+
+### 1) Install dependencies
+From repo root:
+
+```bash
+npm install --include=dev
+```
+
+### 2) Create `.env` files
+Copy examples:
+
+- `apps/backend/.env.example` → `apps/backend/.env`
+- `apps/frontend/.env.example` → `apps/frontend/.env`
+- `packages/contracts/.env.example` → `packages/contracts/.env`
+
+Windows PowerShell:
+
+```powershell
+Copy-Item apps/backend/.env.example apps/backend/.env
+Copy-Item apps/frontend/.env.example apps/frontend/.env
+Copy-Item packages/contracts/.env.example packages/contracts/.env
+```
+
+### 3) Configure PostgreSQL
+1. Create a database, e.g. `lab_report_blockchain`
+2. Update `DATABASE_URL` in `apps/backend/.env`
+
+Example:
+
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/lab_report_blockchain?schema=public
+```
+
+### 4) Prisma: generate, migrate, seed
+From repo root:
+
+```bash
+npm run prisma:generate --workspace @lab/backend
+npm run prisma:migrate --workspace @lab/backend
+npm run prisma:seed --workspace @lab/backend
+```
+
+### 5) Start local blockchain (Terminal 1)
+
+```bash
+npm run dev:contracts
+```
+
+Keep this terminal running.
+
+### 6) Deploy contract (Terminal 2)
+
+```bash
+npm run deploy:local --workspace @lab/contracts
+```
+
+Copy the deployed contract address from the output (`LabReportRegistry deployed to: 0x...`).
+
+### 7) Configure blockchain env (backend)
+Update `apps/backend/.env`:
+
+- `BLOCKCHAIN_RPC_URL=http://127.0.0.1:8545`
+- `BLOCKCHAIN_CONTRACT_ADDRESS=0x...` (from deploy output)
+- `BLOCKCHAIN_PRIVATE_KEY=0x...` (one of Hardhat node accounts; deployer/owner recommended)
+
+Notes:
+- `BLOCKCHAIN_CONTRACT_ADDRESS` must match regex `^0x[a-fA-F0-9]{40}$`
+- `BLOCKCHAIN_PRIVATE_KEY` must match regex `^0x[a-fA-F0-9]{64}$`
+
+### 8) Start backend API (Terminal 3)
+
+```bash
+npm run dev:backend
+```
+
+Health check:
+- `GET http://localhost:4000/health`
+
+### 9) Start frontend (Terminal 4)
+
+```bash
+npm run dev:frontend
+```
+
+Open:
+- `http://localhost:5173`
+
+Frontend calls API using `apps/frontend/.env`:
+
+```env
+VITE_API_BASE_URL=http://localhost:4000/api
+```
+
+### Demo accounts
+Seeded by `apps/backend/prisma/seed.ts`:
+
+- Admin: `admin@lab.local` / `admin1234`
+- Lab staff: `staff@lab.local` / `staff1234`
+- Verifier: `verifier@lab.local` / `verify1234`
+- User: `user@lab.local` / `user1234`
+
+### Suggested demo flow
+1. Login as **Lab staff** → Upload/Register a PDF.
+2. Open **Documents** → open a document detail (shows DB metadata + on-chain proof).
+3. Login as **Verifier** → Verify the same PDF.
+   - Verify computes SHA-256 in the browser and submits only the hash (no file upload for verification).
+4. Login as **Admin** → Revoke a document with a reason → verify again becomes `REVOKED`.
+
+### Troubleshooting
+
+#### “Document metadata is missing on blockchain”
+This usually happens if Hardhat node was restarted or the contract was redeployed: DB still has documents, but chain state is reset.
+
+Fix by rehydrating DB → chain:
+
+```bash
+npm -w apps/backend run chain:rehydrate
+```
+
+After rehydrate, restart backend and refresh frontend.
+
 ## Useful Scripts
 
 Root:
